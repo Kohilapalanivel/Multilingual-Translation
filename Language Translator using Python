@@ -1,0 +1,182 @@
+import speech_recognition as sr
+from googletrans import Translator, LANGUAGES
+from gtts import gTTS
+import os
+
+# Initialize the translator
+translator = Translator()
+
+# Function to print all available languages in a structured format
+def print_available_languages():
+    print("\nAvailable Languages:")
+    print("-----------------------------------------------------------")
+    print("{:<10} {:<20} {:<10} {:<20}".format("Code", "Language", "Code", "Language"))
+    print("-----------------------------------------------------------")
+    
+    languages = list(LANGUAGES.items())
+    for i in range(0, len(languages), 2):
+        # Handle cases where the last row might have only one language
+        left = f"{languages[i][0]:<10} {languages[i][1].capitalize():<20}"
+        right = (
+            f"{languages[i + 1][0]:<10} {languages[i + 1][1].capitalize():<20}"
+            if i + 1 < len(languages)
+            else ""
+        )
+        print(f"{left} {right}")
+    print("-----------------------------------------------------------")
+    print("\nUse the above codes for translation.")
+
+# Function to get valid language code from user
+def get_language_code():
+    while True:
+        language_code = input("Enter the language code: ").strip()
+        if language_code in LANGUAGES:
+            return language_code
+        else:
+            print("Invalid language code. Please try again.")
+
+# 1. Text to Text Converter
+def translate_text():
+    text_to_translate = input("Enter the text you want to translate: ")
+    target_language = get_language_code()
+    translated = translator.translate(text_to_translate, dest=target_language)
+    print(f"Translated text: {translated.text}")
+
+# 2. Text to Speech Converter
+def text_to_speech():
+    text = input("Enter the text to convert to speech: ")
+    language_code = get_language_code()
+    translated_text = translator.translate(text, dest=language_code).text
+    speech_speed = input("Do you want the speech to be slow? (yes/no): ")
+    slow = speech_speed.lower() == "yes"
+    output_file = input("Enter the output file name (default: output.mp3): ")
+    if not output_file:
+        output_file = "output.mp3"
+    if not output_file.endswith(".mp3"):
+        output_file += ".mp3"
+    
+    tts = gTTS(text=translated_text, lang=language_code, slow=slow)
+    tts.save(output_file)
+    os.system(f"start {output_file}")  # For Windows
+
+# 3. Speech to Text Converter
+def capture_audio_from_microphone():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Adjusting for ambient noise, please wait...")
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        print("Listening for your speech...")
+        audio_data = recognizer.listen(source)
+        print("Recognizing...")
+        try:
+            text = recognizer.recognize_google(audio_data)
+            print(f"You said: {text}")
+            return text
+        except sr.UnknownValueError:
+            print("Sorry, I could not understand the audio.")
+            return None
+        except sr.RequestError as e:
+            print(f"Could not request results from Google Speech Recognition service; {e}")
+            return None
+
+def capture_audio_from_file(file_path):
+    recognizer = sr.Recognizer()
+    try:
+        with sr.AudioFile(file_path) as source:
+            audio_data = recognizer.record(source)
+            text = recognizer.recognize_google(audio_data)
+            print(f"Recognized text from file: {text}")
+            return text
+    except FileNotFoundError:
+        print("Audio file not found. Please check the path and try again.")
+        return None
+    except sr.UnknownValueError:
+        print("Sorry, I could not understand the audio in the file.")
+        return None
+    except sr.RequestError as e:
+        print(f"Could not request results from Google Speech Recognition service; {e}")
+        return None
+
+def speech_to_text():
+    while True:
+        print("Choose the audio source:")
+        print("1. Record live speech")
+        print("2. Provide audio file path")
+        print("3. Go back to main menu")
+        choice = input("Enter your choice (1, 2, or 3): ")
+        
+        if choice == '1':
+            captured_text = capture_audio_from_microphone()
+        elif choice == '2':
+            file_path = input("Enter the path to the audio file: ")
+            captured_text = capture_audio_from_file(file_path)
+        elif choice == '3':
+            return
+        else:
+            print("Invalid choice. Please try again.")
+            continue
+
+        if captured_text:
+            target_language = get_language_code()
+            translated_text = translator.translate(captured_text, dest=target_language)
+            print(f"Translated text in {target_language}: {translated_text.text}")
+
+# 4. Speech to Speech Converter
+def speech_to_speech():
+    while True:
+        print("Choose the audio source for speech:")
+        print("1. Record live speech")
+        print("2. Provide audio file path")
+        print("3. Go back to main menu")
+        choice = input("Enter your choice (1, 2, or 3): ")
+        
+        if choice == '1':
+            captured_text = capture_audio_from_microphone()
+        elif choice == '2':
+            file_path = input("Enter the path to the audio file: ")
+            captured_text = capture_audio_from_file(file_path)
+        elif choice == '3':
+            return
+        else:
+            print("Invalid choice. Please try again.")
+            continue
+
+        if captured_text:
+            target_language = get_language_code()
+            translated_text = translator.translate(captured_text, dest=target_language).text
+            tts = gTTS(text=translated_text, lang=target_language, slow=False)
+            audio_file = "translated_speech.mp3"
+            tts.save(audio_file)
+            os.system(f"start {audio_file}")  # For Windows
+            print("Converted Successfully")
+
+# Main function to run the program with exit option
+def main():
+    print("Welcome to the Translation Program!")
+    print_available_languages()  # Display available languages at the start
+    while True:
+        print("\nChoose an option:")
+        print("1. Text to Text Translation")
+        print("2. Text to Speech Conversion")
+        print("3. Speech to Text Conversion")
+        print("4. Speech to Speech Conversion")
+        print("5. Exit")
+        
+        choice = input("Enter your choice (1-5): ")
+        
+        if choice == '1':
+            translate_text()
+        elif choice == '2':
+            text_to_speech()
+        elif choice == '3':
+            speech_to_text()
+        elif choice == '4':
+            speech_to_speech()
+        elif choice == '5':
+            print("Exiting the program. Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please enter a number between 1 and 5.")
+
+if __name__ == "__main__":
+    main()
